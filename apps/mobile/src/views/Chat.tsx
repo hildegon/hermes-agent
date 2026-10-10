@@ -1,3 +1,4 @@
+import BrandMark from '../BrandMark'
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { ArrowUp, Paperclip, Plus, Square } from 'lucide-react'
@@ -104,7 +105,7 @@ export default function Chat({ api, machine, profile, connection, cwd, onError, 
   return <section className="chat">
     <div className="chat-toolbar"><select aria-label="Conversación" value={localStorage.getItem(key) || ''} disabled={!connected || loading} onChange={event => void report(() => open(event.target.value))}><option value="">Nueva conversación</option>{sessions.map(item => <option key={item.id} value={item.id}>{item.title || item.preview || 'Conversación'}</option>)}</select><button aria-label="Nueva conversación" disabled={!connected || loading} onClick={() => void report(newChat)}><Plus/></button></div>
     <div className="transcript" ref={transcript} onScroll={event => { const node = event.currentTarget; follow.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80 }}>
-      {!messages.length && !stream ? <div className="empty"><h2>¿En qué trabajamos?</h2><p>Las tareas se ejecutan en {machine.name}, con el agente {profile}.</p></div> : null}
+      {!messages.length && !stream ? <div className="empty"><BrandMark/><h2>¿En qué trabajamos?</h2><p>Las tareas se ejecutan en {machine.name}, con el agente {profile}.</p></div> : null}
       {messages.filter(message => message.display_kind !== 'hidden').map((message, index) => message.role === 'tool' ? <details key={message.row_id || index} className="tool-row"><summary>{message.name || 'Resultado de herramienta'}</summary><pre>{typeof message.content === 'string' ? message.content : JSON.stringify(message.content, null, 2)}</pre></details> : <article className={`message ${message.role}`} key={message.row_id || index}><span className="speaker">{message.role === 'user' ? 'Tú' : 'Hermes'}</span><ReactMarkdown>{message.text || (typeof message.content === 'string' ? message.content : '')}</ReactMarkdown></article>)}
       {stream ? <article className="message assistant"><span className="speaker">Hermes</span><ReactMarkdown>{stream}</ReactMarkdown></article> : null}
       {activity.length ? <details className="activity"><summary>Actividad · {activity.length}</summary>{activity.map((item, index) => <p key={index}>{item}</p>)}</details> : null}

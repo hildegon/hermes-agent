@@ -1,3 +1,4 @@
+import BrandMark from './BrandMark'
 import { useEffect, useMemo, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { App as NativeApp } from '@capacitor/app'
@@ -48,7 +49,7 @@ export default function App() {
     setPairCode(value); setPairing(await api.request(`/v1/pairings/${value}`)); setPairOpen(true)
   }
   if (!account) return <main className="signin">
-    <h1 className="signin-title"><Monitor size={28}/>Hermes Mobile</h1>
+    <h1 className="signin-title"><BrandMark/>Hermes Mobile</h1>
     <p>Tus agentes, estés donde estés.</p>
     <label>Servidor privado<input value={server} onChange={event => setServer(event.target.value)} placeholder="https://tu-servidor.ts.net" autoCapitalize="none" inputMode="url"/></label>
     <label>Clave de acceso<input type="password" value={accessKey} onChange={event => setAccessKey(event.target.value)} placeholder="La clave generada por tu servidor" autoCapitalize="none" autoComplete="current-password" spellCheck={false}/></label>
