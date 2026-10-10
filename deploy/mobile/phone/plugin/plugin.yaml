@@ -1,0 +1,4 @@
+name: android-phone
+description: Control the Android phone through the user-enabled Hermes Mobile accessibility bridge.
+version: 0.1.0
+author: Hermes Mobile contributors

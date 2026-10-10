@@ -1,4 +1,5 @@
 import BrandMark from './BrandMark'
+import Phone from './Phone'
 import { useEffect, useMemo, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { App as NativeApp } from '@capacitor/app'
@@ -9,6 +10,7 @@ import { login, logout, watchAccount, type Account } from './auth'
 import Workspace from './Workspace'
 
 export default function App() {
+  const [phone, setPhone] = useState(false)
   const [account, setAccount] = useState<Account | null>(null), [server, setServer] = useState(() => localStorage.getItem('mobile:server:v1') || import.meta.env.VITE_MOBILE_SERVER || '')
   const [machines, setMachines] = useState<Machine[]>([]), [selected, setSelected] = useState<Machine | null>(null)
   const [accessKey, setAccessKey] = useState('')
@@ -36,18 +38,20 @@ export default function App() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
     const listener = NativeApp.addListener('backButton', () => {
-      if (pairOpen) { setPairOpen(false); setPairing(null) }
+      if (phone) setPhone(false)
+      else if (pairOpen) { setPairOpen(false); setPairing(null) }
       else if (selected) setSelected(null)
       else void NativeApp.minimizeApp()
     })
     return () => { void listener.then(value => value.remove()) }
-  }, [pairOpen, selected])
+  }, [phone, pairOpen, selected])
   async function preview(code: string) {
     if (!api) throw new Error('Configura la dirección del servidor.')
     const value = code.trim().startsWith('{') ? parsePairing(code, api.server).code : code.trim()
     if (!/^[A-Za-z0-9_-]{32}$/.test(value)) throw new Error('El código de vinculación no es válido.')
     setPairCode(value); setPairing(await api.request(`/v1/pairings/${value}`)); setPairOpen(true)
   }
+  if (phone) return <Phone onBack={() => setPhone(false)}/>
   if (!account) return <main className="signin">
     <h1 className="signin-title"><BrandMark/>Hermes Mobile</h1>
     <p>Tus agentes, estés donde estés.</p>
@@ -56,6 +60,7 @@ export default function App() {
     <button className="primary" disabled={busy || !server.trim() || !accessKey.trim()} onClick={() => void run(async () => { const value = serverUrl(server); await login(value, accessKey.trim()); localStorage.setItem('mobile:server:v1', value); setServer(value); setAccessKey('') })}>{busy ? 'Conectando…' : 'Conectar'}</button>
     <p className="muted">Usa tu propio servidor y su clave de acceso. Conecta Tailscale para acceder desde fuera de casa.</p>
     {error ? <p role="alert" className="error">{error}</p> : null}
+    {Capacitor.isNativePlatform() ? <button onClick={() => setPhone(true)}>Usar Hermes en este teléfono</button> : null}
     <footer>Adaptación independiente de Hermes Agent · MIT</footer>
   </main>
   return <div className="app-shell">
@@ -66,6 +71,7 @@ export default function App() {
     {error ? <div className="error" role="alert">{error}<button onClick={() => setError('')} aria-label="Cerrar error">Cerrar</button></div> : null}
     {selected && api ? <Workspace key={selected.id} api={api} machine={selected} onError={setError}/> : <main className="machines">
       <div className="section-heading"><div><h1>Tus máquinas</h1><p className="muted">Elige dónde quieres trabajar.</p></div><button disabled={busy} aria-label="Actualizar máquinas" onClick={() => void run(refresh)}><RefreshCw/></button></div>
+      {Capacitor.isNativePlatform() ? <div className="machine-row"><button className="machine-open" onClick={() => setPhone(true)}><Monitor/><span><strong>Este teléfono</strong><small>Agente local · Control de Android</small></span><span className="open-label">Abrir</span></button></div> : null}
       {machines.map(machine => <div className="machine-row" key={machine.id}><button className="machine-open" onClick={() => setSelected(machine)}><Laptop/><span><strong>{machine.name}</strong><small>{machine.url}</small></span><span className="open-label">Abrir</span></button><button className="quiet" onClick={() => void run(async () => { if (window.confirm(`¿Desvincular ${machine.name}? Sus agentes seguirán funcionando en el PC.`)) { await api!.request(`/v1/machines/${machine.id}`, 'DELETE'); await refresh() } })}>Desvincular</button></div>)}
       {!machines.length ? <div className="empty"><Monitor size={40}/><h2>{loaded ? 'Conecta tu primer PC' : error ? 'No se pudo cargar la lista' : 'Cargando tus PC…'}</h2><p>{loaded ? 'Abre el conector en tu PC y escanea su QR. Tus conversaciones seguirán allí.' : 'Comprueba que Tailscale y el servidor estén disponibles.'}</p></div> : null}
       <button className="primary" onClick={() => { setPairOpen(true); setPairing(null); setPairCode('') }}><Plus/>Vincular PC</button>

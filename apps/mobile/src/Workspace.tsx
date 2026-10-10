@@ -12,7 +12,7 @@ const tabs = [{ id: 'chat', label: 'Chat', Icon: MessageSquare }, { id: 'files',
 type Tab = typeof tabs[number]['id']
 export default function Workspace({ api, machine, onError }: { api: Api; machine: Machine; onError: (message: string) => void }) {
   const [profile, setProfile] = useState('default'), [profiles, setProfiles] = useState<ProfileRow[]>([])
-  return <><div className="profilebar"><label>Agente<select value={profile} onChange={event => { onError(''); setProfile(event.target.value) }}><option value="default">default</option>{profiles.filter(item => item.name !== 'default').map(item => <option key={item.name} value={item.name}>{item.display_name || item.name}</option>)}</select></label></div><AgentWorkspace key={profile} api={api} machine={machine} profile={profile} onError={onError} onProfiles={setProfiles}/></>
+  return <><div className="profilebar"><label>Agente<select disabled={machine.id === 'this-phone'} value={profile} onChange={event => { onError(''); setProfile(event.target.value) }}><option value="default">default</option>{profiles.filter(item => item.name !== 'default').map(item => <option key={item.name} value={item.name}>{item.display_name || item.name}</option>)}</select></label></div><AgentWorkspace key={profile} api={api} machine={machine} profile={profile} onError={onError} onProfiles={setProfiles}/></>
 }
 function AgentWorkspace({ api, machine, profile, onError, onProfiles }: { api: Api; machine: Machine; profile: string; onError: (message: string) => void; onProfiles: (profiles: ProfileRow[]) => void }) {
   const connection = useMemo(() => new AgentConnection(api, machine.id, profile), [api, machine.id, profile])
@@ -32,7 +32,7 @@ function AgentWorkspace({ api, machine, profile, onError, onProfiles }: { api: A
   }, [connection, api, machine.id, profile, onProfiles, onError])
   const props: ViewProps = { api, machine, profile, connection, cwd, onError, onNeedsInput: setNeedsInput }
   return <div className="workspace">
-    <div className="connection-line" role="status"><span className={`status-dot ${state === 'open' ? 'online' : ''}`}/>{state === 'open' ? 'Conectado a tu PC' : state === 'connecting' ? 'Conectando…' : 'Conexión interrumpida'}{state !== 'open' ? <button aria-label="Reconectar" onClick={() => void connection.connect().catch(error => onError(error.message))}><RefreshCw size={16}/></button> : null}</div>
+    <div className="connection-line" role="status"><span className={`status-dot ${state === 'open' ? 'online' : ''}`}/>{state === 'open' ? (machine.id === 'this-phone' ? 'Conectado a este teléfono' : 'Conectado a tu PC') : state === 'connecting' ? 'Conectando…' : 'Conexión interrumpida'}{state !== 'open' ? <button aria-label="Reconectar" onClick={() => void connection.connect().catch(error => onError(error.message))}><RefreshCw size={16}/></button> : null}</div>
     <div className="workspace-body">
       {needsInput && tab !== 'chat' ? <button onClick={() => setTab('chat')}>Hermes necesita tu respuesta · Abrir chat</button> : null}
       <div hidden={tab !== 'chat'} className="view"><Chat {...props} visible={tab === 'chat'}/></div>
@@ -41,6 +41,6 @@ function AgentWorkspace({ api, machine, profile, onError, onProfiles }: { api: A
       {opened.has('git') ? <div hidden={tab !== 'git'} className="view"><Git {...props}/></div> : null}
       {opened.has('settings') ? <div hidden={tab !== 'settings'} className="view"><Configuration {...props}/></div> : null}
     </div>
-    <nav className="bottom-nav" aria-label="Herramientas del agente">{tabs.map(({ id, label, Icon }) => <button key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => { setOpened(previous => new Set([...previous, id])); setTab(id) }}><Icon size={21}/><span>{label}</span></button>)}</nav>
+    <nav className="bottom-nav" aria-label="Herramientas del agente">{tabs.filter(item => machine.id !== 'this-phone' || item.id === 'chat').map(({ id, label, Icon }) => <button key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => { setOpened(previous => new Set([...previous, id])); setTab(id) }}><Icon size={21}/><span>{label}</span></button>)}</nav>
   </div>
 }

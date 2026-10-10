@@ -12,3 +12,5 @@ Desktop fidelity: reuse the original nous-girl light/dark brand assets (MIT, app
 User bubble speaker labels use primary text to retain AA contrast over the blue fill.
 
 Further Desktop refinement: original desktop launcher icon reused for Android legacy and adaptive masks; quiet brand header, avatar labels for Hermes replies, content-sized right-aligned user bubbles, flat selected navigation with a hairline indicator, white/input-surface composer and circular send action. All interactive targets retain 48px minimums.
+
+Local Android mode adds an “Este teléfono” entry before remote sign-in and in the machine roster. Its setup screen uses the same flat rows and quiet type: accessibility, explicit Activate/Stop, runtime readiness, then chat and a searchable app authorization list. Local default-profile chat reuses the desktop transcript/composer; unsupported local desktop tools are hidden. Finish review: actual Samsung UI inspected at setup and chat, native launch/scroll and protected-boundary denials verified, TypeScript tests and Android build passed. No new raster assets were introduced.

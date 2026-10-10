@@ -1,7 +1,7 @@
 # Hermes Mobile
 <!-- impeccable:product-schema 1 -->
 ## Platform
-web
+mobile
 ## Stack
 React and TypeScript in Capacitor on Android, approved in the implementation plan.
 ## Users
@@ -9,11 +9,11 @@ Sergio controls his Hermes agents from an Android phone, including machines runn
 ## Product Purpose
 Connect several PCs to one self-hosted private service and operate their existing Hermes agents remotely. Success means working chat, approvals, configuration, files, Git and interactive terminals.
 ## Operating Context
-Private Tailscale network. The Mac mini hosts the registry/proxy; owners may deploy their own Node/Docker service. Each agent continues to run on its PC.
+Private Tailscale network. The Mac mini hosts the registry/proxy; owners may deploy their own Node/Docker service. Remote agents continue to run on their PCs. Optional experimental local mode runs Hermes in Termux/PRoot on the phone and uses a user-enabled accessibility service for explicitly authorized apps.
 ## Brand Commitments
 Preserve the recognizable Hermes Desktop interface and MIT attribution. This is an independent adaptation, not an official Nous Research release.
 ## Capabilities and Constraints
-Android first, one local owner authenticated by an installation access key, QR pairing, no public registration or Funnel in the first release. No invented machines or conversation history in production. No external identity service or app registration is required. Network and service configuration belong to the owner.
+Android first, one local owner authenticated by an installation access key, QR pairing, no public registration or Funnel in the first release. No invented machines or conversation history in production. No external identity service or app registration is required. Network and service configuration belong to the owner. Local phone chat needs no Tailscale or registry; it requires Termux setup, provider access and an unlocked device for UI operations.
 
 ## Direction contract
 THESIS: Adapt the user's Hermes Desktop workflow to one phone while keeping the selected machine and profile explicit.
