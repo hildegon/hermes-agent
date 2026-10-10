@@ -27,4 +27,19 @@ class RuntimeAuthTests(unittest.IsolatedAsyncioTestCase):
             await auth(scope,None,send)
             self.assertEqual(output[0].get('status',output[0].get('code',output[0]['type'])),expected)
 
+class SetupConfigTests(unittest.TestCase):
+    def test_provider_and_existing_tools_are_preserved(self):
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+        import hermes_yaml as yaml
+        spec=importlib.util.spec_from_file_location('configure',Path(__file__).parent/'configure.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'config.yaml'; original={'model':{'provider':'custom','default':'my-model'},'platform_toolsets':{'cli':['web']},'plugins':{'enabled':['existing']}}
+            path.write_text(yaml.safe_dump(original));module.configure(directory);module.configure(directory)
+            result=yaml.safe_load(path.read_text())
+            self.assertEqual(result['model'],original['model']);self.assertEqual(result['plugins']['enabled'],['existing','android-phone']);self.assertEqual(result['platform_toolsets']['cli'],['web','android_phone'])
+            path.write_text('model: [broken');before=path.read_bytes()
+            with self.assertRaises(yaml.YAMLError):module.configure(directory)
+            self.assertEqual(path.read_bytes(),before)
+
 if __name__=='__main__':unittest.main()

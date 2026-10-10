@@ -70,3 +70,4 @@
 .machine-row{padding:.75rem 0}
 .machine-open>svg{color:var(--ui-text-secondary)}
 @media(min-width:800px){.bottom-nav button[aria-current=page]{box-shadow:inset 2px 0 var(--theme-primary)}}
+.phone-error{align-items:flex-start;flex:none}.phone-error>span{flex:1;min-width:0;overflow-wrap:anywhere}.phone-error>button{flex:none;white-space:nowrap}.phone-setup .notice>button{display:block;margin-top:.75rem}.phone-setup>h2,.phone-provider{margin-top:2rem}.phone-provider{padding-bottom:1rem;border-bottom:1px solid var(--ui-stroke)}

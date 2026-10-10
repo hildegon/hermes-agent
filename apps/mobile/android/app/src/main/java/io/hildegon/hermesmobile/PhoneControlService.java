@@ -33,6 +33,10 @@ public class PhoneControlService extends AccessibilityService {
         server = new NanoHTTPD("127.0.0.1", PORT) {
             @Override public Response serve(IHTTPSession session) {
                 try {
+                    if (session.getUri().startsWith("/setup/")) {
+                        if (!PhoneSetup.authorized(PhoneControlService.this,session.getHeaders().get("authorization"))) return response(Response.Status.UNAUTHORIZED,new JSONObject().put("error","Installation authorization required"));
+                        return PhoneSetup.serve(PhoneControlService.this,session);
+                    }
                     String expected = "Bearer " + PhoneControlPlugin.token(PhoneControlService.this);
                     if (!expected.equals(session.getHeaders().get("authorization"))) return response(Response.Status.UNAUTHORIZED, new JSONObject().put("error", "Authentication required"));
                     if (session.getMethod() == Method.GET && session.getUri().equals("/status")) return response(Response.Status.OK, new JSONObject().put("enabled", active));
@@ -126,6 +130,29 @@ public class PhoneControlService extends AccessibilityService {
             default: throw new IllegalArgumentException("Unsupported action");
         }
         clearNodes(); return new JSONObject().put("ok",ok).put("note","Read state again to verify the result");
+    }
+    @Override public android.accessibilityservice.InputMethod onCreateInputMethod() { return new android.accessibilityservice.InputMethod(this); }
+    boolean canPrepare() { return server != null; }
+    void prepareTermux(String command, Runnable success, java.util.function.Consumer<String> failure) {
+        main.post(() -> {
+            try {
+                if (((android.app.KeyguardManager)getSystemService(KEYGUARD_SERVICE)).isDeviceLocked())throw new IllegalStateException("Desbloquea el teléfono para preparar el entorno.");
+                startActivity(new Intent(Intent.ACTION_RUN).setClassName("com.termux","com.termux.app.TermuxActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                enterSetup(command,success,failure,0);
+            }catch(Exception error){PhoneSetup.phase(this,"error");failure.accept(error instanceof IllegalStateException ? error.getMessage() : "No se pudo abrir Termux. Instálalo y ábrelo una vez.");}
+        });
+    }
+    private void enterSetup(String command, Runnable success, java.util.function.Consumer<String> failure, int attempt) {
+        main.postDelayed(() -> {
+            android.accessibilityservice.InputMethod method=getInputMethod();
+            android.view.inputmethod.EditorInfo editor=method==null?null:method.getCurrentInputEditorInfo();
+            AccessibilityNodeInfo root=getRootInActiveWindow();
+            boolean termux=root!=null && "com.termux".contentEquals(root.getPackageName()); if(root!=null)root.recycle();
+            if(termux && editor!=null && "com.termux".equals(editor.packageName) && method.getCurrentInputConnection()!=null) {
+                method.getCurrentInputConnection().commitText(command+"\n",1,null);success.run();
+            }else if(attempt<30)enterSetup(command,success,failure,attempt+1);
+            else{PhoneSetup.phase(this,"error");failure.accept("No se pudo preparar Termux. Abre su terminal, toca el área de escritura y vuelve a Preparar Hermes.");}
+        },500);
     }
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) clearNodes(); }
     @Override public void onInterrupt() { setActive(false); }

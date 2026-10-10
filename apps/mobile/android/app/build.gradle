@@ -44,3 +44,11 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+android.sourceSets.main.assets.srcDir("$buildDir/generated/phoneAssets")
+tasks.register('stagePhoneAssets', Copy) {
+    from('../../../../deploy/mobile/phone')
+    include 'install.sh', 'start.sh', 'runtime.py', 'configure.py', 'plugin/plugin.yaml', 'plugin/__init__.py'
+    into "$buildDir/generated/phoneAssets/phone"
+}
+preBuild.dependsOn stagePhoneAssets

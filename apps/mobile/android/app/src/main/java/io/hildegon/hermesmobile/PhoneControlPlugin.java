@@ -36,9 +36,23 @@ public class PhoneControlPlugin extends Plugin {
     @PluginMethod public void status(PluginCall call) {
         JSObject result=new JSObject(); PhoneControlService service=PhoneControlService.instance;
         result.put("accessibility",service!=null); result.put("enabled",service!=null && service.isActive());result.put("device",Build.MANUFACTURER+" "+Build.MODEL);
+        result.put("phase",PhoneSetup.phase(getContext()));result.put("commandPermission",getPermissionState("termux")==PermissionState.GRANTED);result.put("automaticSetup",Build.VERSION.SDK_INT>=33);
         result.put("allowed",new JSArray(allowed(getContext())));
         try {getContext().getPackageManager().getPackageInfo("com.termux",0);result.put("termux",true);} catch(Exception error){result.put("termux",false);}
         call.resolve(result);
+    }
+    @PluginMethod public void installTermux(PluginCall call) { PhoneSetup.installTermux(this,call); }
+    @PluginMethod public void prepareRuntime(PluginCall call) { PhoneSetup.prepare(this,call); }
+    @PluginMethod public void appSettings(PluginCall call) { getActivity().startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getContext().getPackageName())));call.resolve(); }
+    @PluginMethod public void copyLoginCode(PluginCall call) {
+        String code=call.getString("code","");if(!code.matches("[A-Za-z0-9-]{1,32}")){call.reject("Código de inicio de sesión no válido.");return;}
+        android.content.ClipData clip=android.content.ClipData.newPlainText("Inicio de sesión",code);
+        if(Build.VERSION.SDK_INT>=33){android.os.PersistableBundle extras=new android.os.PersistableBundle();extras.putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE,true);clip.getDescription().setExtras(extras);}
+        ((android.content.ClipboardManager)getContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE)).setPrimaryClip(clip);call.resolve();
+    }
+    @PluginMethod public void openLogin(PluginCall call) {
+        try { java.net.URI uri=new java.net.URI(call.getString("url","")); if(!"https".equals(uri.getScheme()) || !"auth.openai.com".equals(uri.getHost()) || uri.getUserInfo()!=null)throw new IllegalArgumentException();getActivity().startActivity(new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(uri.toString())));call.resolve(); }
+        catch(Exception error){call.reject("Dirección de inicio de sesión no válida.");}
     }
     @PluginMethod public void permissions(PluginCall call) { getActivity().startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));call.resolve(); }
     @PluginMethod public void setEnabled(PluginCall call) {
