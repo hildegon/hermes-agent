@@ -1,6 +1,6 @@
 # Hermes Mobile
 
-Cliente Android para controlar varios PC con Hermes mediante Google, un servicio personal en el NAS y Tailscale. Mantiene los conceptos y colores de Hermes Desktop, con navegación táctil entre chat, archivos, terminal, Git y ajustes. No modifica el motor de Hermes ni su instalación de escritorio.
+Cliente Android para controlar varios PC con Hermes mediante Google, un servicio personal en este Mac mini (o en un NAS) y Tailscale. Mantiene los conceptos y colores de Hermes Desktop, con navegación táctil entre chat, archivos, terminal, Git y ajustes. No modifica el motor de Hermes ni su instalación de escritorio.
 
 ## Estado
 
@@ -13,10 +13,32 @@ El APK de desarrollo puede compilar sin Firebase y muestra una explicación de c
 1. Crea un proyecto en Firebase Console y activa Authentication → Google. No necesitas Firestore ni una clave privada en el móvil.
 2. Registra una aplicación Android con paquete `io.hildegon.hermesmobile`. Añade la huella SHA-1 del certificado de desarrollo (`./gradlew signingReport` en `android`) y, antes de distribuir, la del certificado de publicación.
 3. Descarga `google-services.json` a `apps/mobile/android/app/`. Está excluido de Git. Registra también una app web y copia sus valores públicos en `.env.local` usando `.env.example` como plantilla. Esos valores identifican el proyecto; nunca copies credenciales administrativas a variables `VITE_*`.
-4. Crea tu usuario Google en Authentication y copia su **UID de Firebase** en `MOBILE_OWNER_UID` del NAS. El UID no es tu email ni un identificador de GitHub. Solo ese UID puede listar/vincular/controlar equipos.
+4. Crea tu usuario Google en Authentication y copia su **UID de Firebase** en `MOBILE_OWNER_UID` del servidor. El UID no es tu email ni un identificador de GitHub. Solo ese UID puede listar/vincular/controlar equipos.
 5. En desarrollo web autoriza `localhost` en Authentication y añade `http://127.0.0.1:5180` a `MOBILE_ALLOWED_ORIGINS`. Para la app instalada los orígenes son `https://localhost` y `http://localhost`.
 
-## Instalar el servicio en el NAS
+## Servicio instalado en este Mac mini
+
+La instalación actual usa Node nativo, sin Docker ni acceso al NAS:
+
+- URL móvil: `https://sergios-mac-mini.tail0b6ccb.ts.net` (Tailscale privado).
+- Servidor en `127.0.0.1:3000`; conector en `100.73.102.62:9141`; Hermes headless en `127.0.0.1:9140`.
+- Copia de ejecución en `~/Library/Application Support/Hermes Mobile`, separada del checkout en Documents para evitar el bloqueo de privacidad de macOS durante el autoarranque. Incluye `apps/mobile-server`, `apps/mobile-agent`, `apps/shared` y `deploy/mobile/mac/start-server.mjs`, con las dependencias ya instaladas.
+- LaunchAgents `io.hildegon.hermes-mobile-server` e `io.hildegon.hermes-mobile` instalados en `~/Library/LaunchAgents`. Arrancan al iniciar sesión y se reinician si terminan.
+- Configuración privada: `~/.config/hermes-mobile/server.env` (600). Base de datos: `~/.config/hermes-mobile/data/mobile.sqlite`. Conserva la clave de cifrado; no regenerarla al actualizar.
+
+Mientras falten `FIREBASE_PROJECT_ID` y `MOBILE_OWNER_UID`, el servicio devuelve 503 con `configured:false` en todas las rutas, incluidas health y emparejamiento. El conector sí está ejecutando Hermes y rechaza accesos sin su credencial. No hay acceso anónimo a los agentes.
+
+Después de configurar Firebase en ese archivo y en Android, reinicia el servidor (501 es el UID local de Sergio):
+
+```sh
+launchctl kickstart -k gui/501/io.hildegon.hermes-mobile-server
+```
+
+Para obtener el QR, reinicia el conector en primer plano después de detener su LaunchAgent, utilizando el comando de la sección siguiente con `--pair`; al terminar la vinculación vuelve a arrancar su LaunchAgent. No ejecutes dos conectores con los mismos puertos.
+
+El Mac debe permanecer encendido, despierto, conectado a Tailscale y con la sesión del usuario iniciada. Si se apaga, tampoco se podrán controlar los demás PC a través de este servicio. Para actualizar, detén ambos LaunchAgents, actualiza la copia de ejecución y vuelve a cargarlos; un git pull en Documents no cambia automáticamente el servicio instalado.
+
+## Alternativa: instalar el servicio en el NAS
 
 NAS confirmado: `actual`, Tailscale `100.81.111.88`, DNS `actual.tail0b6ccb.ts.net`.
 
@@ -44,7 +66,7 @@ npm --prefix apps/mobile-agent ci --workspaces=false
 npm --prefix apps/mobile-agent start -- \
   --hermes /Users/sergio/.local/bin/hermes \
   --host 100.73.102.62 --port 9141 --hermes-port 9140 \
-  --server https://actual.tail0b6ccb.ts.net \
+  --server https://sergios-mac-mini.tail0b6ccb.ts.net \
   --url http://100.73.102.62:9141 --name "Mac mini" --pair
 ```
 

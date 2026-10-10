@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>io.hildegon.hermes-mobile-server</string>
+  <key>ProgramArguments</key><array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>--env-file=/Users/sergio/.config/hermes-mobile/server.env</string>
+    <string>/Users/sergio/Library/Application Support/Hermes Mobile/deploy/mobile/mac/start-server.mjs</string>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Users/sergio/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>WorkingDirectory</key><string>/Users/sergio/Library/Application Support/Hermes Mobile/apps/mobile-server</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>StandardOutPath</key><string>/Users/sergio/Library/Logs/hermes-mobile-server.log</string>
+  <key>StandardErrorPath</key><string>/Users/sergio/Library/Logs/hermes-mobile-server-error.log</string>
+</dict></plist>
