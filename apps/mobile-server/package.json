@@ -1,0 +1,26 @@
+{
+  "name": "@hermes/mobile-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <27"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/main.ts",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "5.12.5",
+    "@fastify/cors": "11.3.1",
+    "@fastify/websocket": "11.3.4",
+    "firebase-admin": "14.5.0",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "@types/node": "24.10.1",
+    "@types/ws": "8.18.1"
+  }
+}

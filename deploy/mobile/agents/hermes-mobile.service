@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes Mobile connector
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/hermes-mobile/apps/mobile-agent
+ExecStart=/usr/bin/node %h/hermes-mobile/apps/mobile-agent/src/main.ts --hermes %h/.local/bin/hermes --host REPLACE_TAILSCALE_IP
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

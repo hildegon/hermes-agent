@@ -322,3 +322,14 @@ native/fts5_cjk/*.so
 /pm/.lock.json.lock
 
 apps/desktop/.dist-build*
+
+# Personal mobile configuration and credentials
+apps/mobile/.env.local
+apps/mobile/android/app/google-services.json
+**/*.jks
+**/*.keystore
+apps/mobile-server/data/
+deploy/mobile/.env
+apps/mobile/test-results/
+apps/mobile/playwright-report/
+apps/mobile/dist/

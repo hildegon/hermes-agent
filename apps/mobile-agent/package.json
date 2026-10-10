@@ -1,0 +1,30 @@
+{
+  "name": "@hermes/mobile-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <27"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/main.ts",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "setup:pty": "node scripts/setup-pty.mjs",
+    "prestart": "npm run setup:pty",
+    "pretest": "npm run setup:pty"
+  },
+  "dependencies": {
+    "fastify": "5.12.5",
+    "@fastify/websocket": "11.3.4",
+    "node-pty": "1.1.0",
+    "qrcode": "1.5.4",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/ws": "8.18.1",
+    "@types/qrcode": "1.5.6",
+    "typescript": "6.0.3"
+  }
+}

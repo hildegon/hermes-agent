@@ -1,0 +1,24 @@
+services:
+  mobile-server:
+    build:
+      context: ../..
+      dockerfile: apps/mobile-server/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - mobile-data:/app/data
+    mem_limit: 256m
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "2"
+volumes:
+  mobile-data:

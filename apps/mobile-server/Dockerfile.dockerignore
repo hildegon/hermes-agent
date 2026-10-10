@@ -1,0 +1,6 @@
+**
+!apps/
+!apps/mobile-server/
+!apps/mobile-server/package*.json
+!apps/mobile-server/src/
+!apps/mobile-server/src/**
