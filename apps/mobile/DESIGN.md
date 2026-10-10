@@ -10,3 +10,5 @@ Limits: native Android interaction and keyboard behavior require emulator/device
 
 Desktop fidelity: reuse the original nous-girl light/dark brand assets (MIT, apps/desktop/public), the desktop UI text font stack, 4px controls, 12px composer, blue user bubbles, quiet title/profile/session controls and flat tool lists. Phone headings are 20/18px (sign-in title 24px) with 48px touch targets; native navigation remains at the bottom. Assets are copied from the repository, not generated.
 User bubble speaker labels use primary text to retain AA contrast over the blue fill.
+
+Further Desktop refinement: original desktop launcher icon reused for Android legacy and adaptive masks; quiet brand header, avatar labels for Hermes replies, content-sized right-aligned user bubbles, flat selected navigation with a hairline indicator, white/input-surface composer and circular send action. All interactive targets retain 48px minimums.

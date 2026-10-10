@@ -1,0 +1,1 @@
+Android launcher rasters derived by resizing apps/desktop/assets/icon.png from this repository (Hermes Agent / Nous Research, MIT). Adaptive foreground is centered within the Android safe region. No generated artwork.

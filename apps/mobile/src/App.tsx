@@ -60,7 +60,7 @@ export default function App() {
   </main>
   return <div className="app-shell">
     <header className="appbar"><button aria-label={selected ? 'Volver a mis PC' : 'Actualizar mis PC'} onClick={() => selected ? setSelected(null) : void run(refresh)}>{selected ? <ArrowLeft/> : <Monitor/>}</button>
-      <div><strong>{selected?.name || 'Mis PC'}</strong><span>{selected ? 'Hermes remoto' : 'Hermes Mobile'}</span></div>
+      <BrandMark/><div><strong>{selected?.name || 'Mis PC'}</strong><span>{selected ? 'Hermes remoto' : 'Hermes Mobile'}</span></div>
       <button aria-label="Cerrar sesión" onClick={() => void run(logout)}><LogOut/></button>
     </header>
     {error ? <div className="error" role="alert">{error}<button onClick={() => setError('')} aria-label="Cerrar error">Cerrar</button></div> : null}
