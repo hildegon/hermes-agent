@@ -2,12 +2,10 @@ import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
 async function fixture(page: Page, resume = false) {
-  await page.addInitScript(() => localStorage.setItem('mobile:server:v1', 'http://127.0.0.1:3000'))
+  await page.addInitScript(() => { localStorage.setItem('mobile:server:v1', 'http://127.0.0.1:3000'); localStorage.setItem('mobile:access:v1', JSON.stringify({ server: 'http://127.0.0.1:3000', key: 'a'.repeat(43) })) })
   const replies: unknown[] = [], calls: string[] = []
   let askApproval = () => {}, approvalPending = false
   if (resume) await page.addInitScript(() => localStorage.setItem('mobile:session:http://127.0.0.1:3000:mac:default', 'stored'))
-  // Authentication fixtures are HTTP interceptions in tests, never shipped in the APK.
-  await page.route('**/src/auth.ts', route => route.fulfill({ contentType: 'application/javascript', body: `export const configured=true;export const login=async()=>{};export const logout=async()=>{};export const idToken=async()=>'fixture';export const watchAccount=async cb=>{cb({uid:'fixture',displayName:'Test',email:'test@example.invalid'});return()=>{}};` }))
   await page.route('**/v1/**', async route => {
     const url = new URL(route.request().url())
     let body: unknown = {}
@@ -97,4 +95,21 @@ test('hidden chat alerts for approval and acknowledges only when shown', async (
   await page.getByRole('button', { name: 'Permitir una vez', exact: true }).click()
   await expect(page.getByText('Hermes necesita tu aprobación')).not.toBeVisible()
   expect(calls).toContain('approval.respond')
+})
+
+test('connects with a local key, restores access after reload and logs out', async ({ page }) => {
+  const key = 'a'.repeat(43)
+  await page.route('**/v1/machines', route => route.fulfill({ status: route.request().headers().authorization === `Bearer ${key}` ? 200 : 401, json: { machines: [] } }))
+  await page.goto('/')
+  await page.getByLabel('Servidor privado').fill('http://127.0.0.1:3000')
+  await page.getByLabel('Clave de acceso').fill('b'.repeat(43))
+  await page.getByRole('button', { name: 'Conectar', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('La clave de acceso no es válida.')
+  await page.getByLabel('Clave de acceso').fill(key)
+  await page.getByRole('button', { name: 'Conectar', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Tus máquinas' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Tus máquinas' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+  await expect(page.getByLabel('Clave de acceso')).toHaveValue('')
 })

@@ -1,5 +1,5 @@
 import { JsonRpcGatewayClient } from '@hermes/shared'
-import { idToken } from './auth'
+import { accessToken } from './auth'
 export interface Machine { id: string; name: string; url: string }
 export interface Pairing { version: number; server: string; code: string }
 export function serverUrl(value: string): string {
@@ -14,14 +14,14 @@ export function parsePairing(value: string, expectedServer: string): Pairing {
 }
 export class Api {
   readonly server: string
-  constructor(server: string, private token = idToken) { this.server = serverUrl(server) }
+  constructor(server: string, private token = accessToken) { this.server = serverUrl(server) }
   async request<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
     const response = await this.response(path, method, body, signal)
     return response.status === 204 ? undefined as T : response.json() as Promise<T>
   }
   async response(path: string, method = 'GET', body?: unknown, signal?: AbortSignal) {
     const form = body instanceof FormData
-    const response = await fetch(`${this.server}${path}`, { method, signal, headers: { authorization: `Bearer ${await this.token()}`, ...(!form && body !== undefined ? { 'content-type': 'application/json' } : {}) }, body: body === undefined ? undefined : form ? body : JSON.stringify(body) })
+    const response = await fetch(`${this.server}${path}`, { method, signal, headers: { authorization: `Bearer ${await this.token(this.server)}`, ...(!form && body !== undefined ? { 'content-type': 'application/json' } : {}) }, body: body === undefined ? undefined : form ? body : JSON.stringify(body) })
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { error?: string; detail?: string }
       throw new Error(payload.error || payload.detail || `La petición falló (${response.status}).`)

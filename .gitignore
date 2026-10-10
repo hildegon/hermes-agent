@@ -333,3 +333,6 @@ deploy/mobile/.env
 apps/mobile/test-results/
 apps/mobile/playwright-report/
 apps/mobile/dist/
+
+# Private self-hosted access keys
+*.access-key

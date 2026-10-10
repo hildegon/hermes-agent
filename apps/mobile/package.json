@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run test/api.test.ts",
+    "test": "vitest run test/api.test.ts test/auth.test.ts",
     "android:sync": "npm run build && cap sync android",
     "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "test:browser": "playwright test"
@@ -17,9 +17,7 @@
     "@capacitor/core": "8.5.3",
     "@capacitor/android": "8.5.3",
     "@capacitor/app": "8.0.1",
-    "@capacitor-firebase/authentication": "8.5.2",
     "@capacitor/barcode-scanner": "3.1.3",
-    "firebase": "12.19.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "lucide-react": "0.577.0",
@@ -39,8 +37,5 @@
     "@vitejs/plugin-react": "6.0.3",
     "vitest": "4.1.11",
     "@playwright/test": "1.62.1"
-  },
-  "overrides": {
-    "@grpc/grpc-js": "1.14.6"
   }
 }

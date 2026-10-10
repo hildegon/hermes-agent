@@ -4,18 +4,19 @@ import { App as NativeApp } from '@capacitor/app'
 import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner'
 import { LogOut, Monitor, Plus, QrCode, RefreshCw, ArrowLeft, Laptop } from 'lucide-react'
 import { Api, parsePairing, serverUrl, type Machine } from './api'
-import { configured, login, logout, watchAccount, type Account } from './auth'
+import { login, logout, watchAccount, type Account } from './auth'
 import Workspace from './Workspace'
 
 export default function App() {
   const [account, setAccount] = useState<Account | null>(null), [server, setServer] = useState(() => localStorage.getItem('mobile:server:v1') || import.meta.env.VITE_MOBILE_SERVER || '')
   const [machines, setMachines] = useState<Machine[]>([]), [selected, setSelected] = useState<Machine | null>(null)
+  const [accessKey, setAccessKey] = useState('')
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loaded, setLoaded] = useState(false)
   const [pairCode, setPairCode] = useState(''), [pairing, setPairing] = useState<{ name: string; url: string } | null>(null), [pairOpen, setPairOpen] = useState(false)
   const api = useMemo(() => { try { return new Api(server) } catch { return null } }, [server])
   useEffect(() => {
     let disposed = false, stop: (() => void) | undefined
-    void watchAccount(value => { if (!disposed) { setAccount(value); setMachines([]); setSelected(null); setLoaded(false) } }).then(value => { if (disposed) value(); else stop = value }).catch(error => setError(String(error)))
+    void watchAccount(value => { if (!disposed) { setAccount(value); if (value) setServer(value.server); setMachines([]); setSelected(null); setLoaded(false) } }).then(value => { if (disposed) value(); else stop = value }).catch(error => setError(String(error)))
     return () => { disposed = true; stop?.() }
   }, [])
   async function run(action: () => Promise<void>) { setError(''); setBusy(true); try { await action() } catch (error) { setError((error as Error).message) } finally { setBusy(false) } }
@@ -49,9 +50,10 @@ export default function App() {
   if (!account) return <main className="signin">
     <h1 className="signin-title"><Monitor size={28}/>Hermes Mobile</h1>
     <p>Tus agentes, estés donde estés.</p>
-    <label>Servidor privado<input value={server} onChange={event => setServer(event.target.value)} placeholder="https://nas.tu-red.ts.net" autoCapitalize="none" inputMode="url"/></label>
-    <button className="primary" disabled={busy || !configured} onClick={() => void run(async () => { const value = serverUrl(server); localStorage.setItem('mobile:server:v1', value); setServer(value); await login() })}>Continuar con Google</button>
-    {!configured ? <p className="notice">Esta instalación necesita la configuración de Firebase. Sigue la guía de instalación del proyecto.</p> : <p className="muted">Conecta Tailscale para acceder a tus PC.</p>}
+    <label>Servidor privado<input value={server} onChange={event => setServer(event.target.value)} placeholder="https://tu-servidor.ts.net" autoCapitalize="none" inputMode="url"/></label>
+    <label>Clave de acceso<input type="password" value={accessKey} onChange={event => setAccessKey(event.target.value)} placeholder="La clave generada por tu servidor" autoCapitalize="none" autoComplete="current-password" spellCheck={false}/></label>
+    <button className="primary" disabled={busy || !server.trim() || !accessKey.trim()} onClick={() => void run(async () => { const value = serverUrl(server); await login(value, accessKey.trim()); localStorage.setItem('mobile:server:v1', value); setServer(value); setAccessKey('') })}>{busy ? 'Conectando…' : 'Conectar'}</button>
+    <p className="muted">Usa tu propio servidor y su clave de acceso. Conecta Tailscale para acceder desde fuera de casa.</p>
     {error ? <p role="alert" className="error">{error}</p> : null}
     <footer>Adaptación independiente de Hermes Agent · MIT</footer>
   </main>

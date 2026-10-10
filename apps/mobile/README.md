@@ -1,20 +1,33 @@
 # Hermes Mobile
 
-Cliente Android para controlar varios PC con Hermes mediante Google, un servicio personal en este Mac mini (o en un NAS) y Tailscale. Mantiene los conceptos y colores de Hermes Desktop, con navegación táctil entre chat, archivos, terminal, Git y ajustes. No modifica el motor de Hermes ni su instalación de escritorio.
+App Android para controlar tus agentes Hermes en varios PC desde tu propio servicio. Acceso local con una clave aleatoria de instalación, sin Google, Firebase ni registro externo. Una instalación personal tiene un propietario; quien posee su clave puede controlar sus equipos.
 
-## Estado
+Chat, streaming, historial, aprobaciones, archivos, terminal, Git, worktrees, ajustes, skills y MCP mantienen los conceptos de Hermes Desktop. Cada agente trabaja en su PC; desconectar el móvil no cancela el chat. Las peticiones específicas de una ventana Electron siguen requiriendo Desktop.
 
-Implementados: login Google nativo/web, vinculación QR o código, selección de PC y perfil, sesiones persistentes y streaming, adjuntos, aprobaciones, interrupción, archivos con edición y descarga nativa, terminal con reconexión, Git y worktrees, configuración, skills y MCP. Los PC ejecutan los trabajos; el móvil puede desconectarse sin cerrar el chat.
+## Desplegar tu propio servicio
 
-El APK de desarrollo puede compilar sin Firebase y muestra una explicación de configuración pendiente. El acceso a agentes requiere Firebase configurado: no hay modo de acceso anónimo en producción. Las peticiones específicas de una ventana de escritorio (captura de pantalla, vista previa, tour) siguen requiriendo ese cliente.
+Requisitos: Node 24–26, Hermes con `hermes serve` en los PC, y una red privada entre servicio, móvil y equipos. Esta instalación usa Tailscale; la autenticación de la app no consulta ningún proveedor externo. El proxy admite direcciones IPv4 de `100.64.0.0/10`, fija su IP y no sigue redirecciones. Puede usarse una VPN propia en ese rango y un proxy HTTPS con certificado confiable; no se admiten destinos LAN arbitrarios en esta versión.
 
-## Preparar el login de Google
+Desde la raíz del fork:
 
-1. Crea un proyecto en Firebase Console y activa Authentication → Google. No necesitas Firestore ni una clave privada en el móvil.
-2. Registra una aplicación Android con paquete `io.hildegon.hermesmobile`. Añade la huella SHA-1 del certificado de desarrollo (`./gradlew signingReport` en `android`) y, antes de distribuir, la del certificado de publicación.
-3. Descarga `google-services.json` a `apps/mobile/android/app/`. Está excluido de Git. Registra también una app web y copia sus valores públicos en `.env.local` usando `.env.example` como plantilla. Esos valores identifican el proyecto; nunca copies credenciales administrativas a variables `VITE_*`.
-4. Crea tu usuario Google en Authentication y copia su **UID de Firebase** en `MOBILE_OWNER_UID` del servidor. El UID no es tu email ni un identificador de GitHub. Solo ese UID puede listar/vincular/controlar equipos.
-5. En desarrollo web autoriza `localhost` en Authentication y añade `http://127.0.0.1:5180` a `MOBILE_ALLOWED_ORIGINS`. Para la app instalada los orígenes son `https://localhost` y `http://localhost`.
+```sh
+npm --prefix apps/mobile-server ci --workspaces=false
+cp deploy/mobile/.env.example deploy/mobile/.env
+node deploy/mobile/init.mjs deploy/mobile/.env
+# Ajusta MOBILE_TAILNET_SUFFIX a tu red, o déjalo vacío si usas IPs.
+# Con Docker:
+docker compose -f deploy/mobile/compose.yaml up -d --build
+# O con Node nativo, en primer plano:
+(cd apps/mobile-server && node --env-file=../../deploy/mobile/.env src/main.ts)
+```
+
+Elige Docker o Node, sin ejecutar ambos en el mismo puerto. `init.mjs` crea una clave aleatoria de 32 bytes, guarda solo su hash SHA-256 en `.env` y entrega la clave en `.env.access-key`, con permisos privados. Conserva también `MOBILE_ENCRYPTION_KEY`: cifra las credenciales de los conectores. El script rechaza una instalación ya inicializada y conserva una clave de cifrado existente.
+
+Para HTTPS privado con Tailscale, comprueba primero `tailscale serve status` y ejecuta `tailscale serve --bg http://127.0.0.1:3000`. No actives Funnel para este despliegue privado. En Android, introduce esa URL y la clave de `.env.access-key`, y pulsa **Conectar**. El mismo APK sirve para cualquier instalación; `VITE_MOBILE_SERVER` solo preselecciona una dirección y no contiene credenciales.
+
+La app valida la clave antes de guardarla y la vincula al origen exacto del servidor. Cerrar sesión elimina la credencial del dispositivo. No hay registro, recuperación por email ni permisos compartidos. Para sustituir una clave perdida, genera otra instalación de configuración en una ruta temporal y copia únicamente su `MOBILE_ACCESS_KEY_HASH` al servicio; conserva la clave de cifrado y reinicia el servicio. Los móviles necesitarán la nueva clave. Los tickets previos caducan en 30 segundos.
+
+Para restaurar, detén el servicio antes de copiar SQLite o el volumen Docker y conserva `.env` por separado. Sin la clave de cifrado tendrás que volver a vincular los PC. Las claves privadas y archivos `.env` están excluidos de Git.
 
 ## Servicio instalado en este Mac mini
 
@@ -26,9 +39,9 @@ La instalación actual usa Node nativo, sin Docker ni acceso al NAS:
 - LaunchAgents `io.hildegon.hermes-mobile-server` e `io.hildegon.hermes-mobile` instalados en `~/Library/LaunchAgents`. Arrancan al iniciar sesión y se reinician si terminan.
 - Configuración privada: `~/.config/hermes-mobile/server.env` (600). Base de datos: `~/.config/hermes-mobile/data/mobile.sqlite`. Conserva la clave de cifrado; no regenerarla al actualizar.
 
-Mientras falten `FIREBASE_PROJECT_ID` y `MOBILE_OWNER_UID`, el servicio devuelve 503 con `configured:false` en todas las rutas, incluidas health y emparejamiento. El conector sí está ejecutando Hermes y rechaza accesos sin su credencial. No hay acceso anónimo a los agentes.
+El servicio ya está activo con acceso local y este Mac mini está vinculado. La clave privada del móvil está en `~/.config/hermes-mobile/server.env.access-key` (600); `server.env` guarda su hash y una clave de cifrado separada. No copies la clave del conector al móvil.
 
-Después de configurar Firebase en ese archivo y en Android, reinicia el servidor (501 es el UID local de Sergio):
+Después de actualizar la configuración del servidor, reinícialo (501 es el UID local de Sergio):
 
 ```sh
 launchctl kickstart -k gui/501/io.hildegon.hermes-mobile-server
@@ -38,30 +51,11 @@ Para obtener el QR, reinicia el conector en primer plano después de detener su 
 
 El Mac debe permanecer encendido, despierto, conectado a Tailscale y con la sesión del usuario iniciada. Si se apaga, tampoco se podrán controlar los demás PC a través de este servicio. Para actualizar, detén ambos LaunchAgents, actualiza la copia de ejecución y vuelve a cargarlos; un git pull en Documents no cambia automáticamente el servicio instalado.
 
-## Alternativa: instalar el servicio en el NAS
+## Conectar un PC
 
-NAS confirmado: `actual`, Tailscale `100.81.111.88`, DNS `actual.tail0b6ccb.ts.net`.
-
-Desde el checkout en el NAS:
+Desde la raíz del fork, cambia las rutas, IP y URL por las de tu instalación:
 
 ```sh
-cp deploy/mobile/.env.example deploy/mobile/.env
-# Edita FIREBASE_PROJECT_ID, MOBILE_OWNER_UID y MOBILE_ENCRYPTION_KEY.
-openssl rand -base64 32
-docker compose -f deploy/mobile/compose.yaml up -d --build
-tailscale serve --bg http://127.0.0.1:3000
-```
-
-La última orden publica HTTPS **dentro de tu tailnet**. Comprueba `tailscale serve status` antes de cambiar una configuración Serve que ya use el NAS. No actives Funnel todavía: ampliaría la superficie pública sin ser necesario para este uso.
-
-El servicio consume un solo contenedor Node con SQLite, límite de 256 MB y logs rotados. No ejecuta modelos ni guarda transcripciones. Guarda los tokens de los conectores cifrados con AES-GCM; conserva una copia segura de la clave y del volumen `mobile-data`. Sin esa clave, la restauración requiere volver a vincular los PC. Para migrar, detén el contenedor antes de copiar el volumen y conserva su `.env` por separado.
-
-## Conectar este Mac mini
-
-Node 24–26 y Hermes con `hermes serve` son necesarios. Desde la raíz del fork:
-
-```sh
-npm --prefix apps/mobile-server ci --workspaces=false
 npm --prefix apps/mobile-agent ci --workspaces=false
 npm --prefix apps/mobile-agent start -- \
   --hermes /Users/sergio/.local/bin/hermes \
@@ -70,23 +64,21 @@ npm --prefix apps/mobile-agent start -- \
   --url http://100.73.102.62:9141 --name "Mac mini" --pair
 ```
 
-El conector guarda una credencial propia en `~/.config/hermes-mobile/agent.json` (permisos privados), arranca y supervisa su servidor Hermes en loopback, e imprime un QR/código que caduca en cinco minutos. En el móvil: configura el servidor, inicia sesión con Google, escanea y confirma el nombre/dirección del PC. En otros PC sustituye la IP Tailscale y el ejecutable Hermes. Windows usa PowerShell/ConPTY; Linux y Bazzite usan el shell del usuario.
+El conector guarda su credencial propia en `~/.config/hermes-mobile/agent.json` (600), supervisa Hermes en loopback e imprime un QR/código de cinco minutos. En el móvil conectado al servicio: escanea o pega ese código y confirma nombre/dirección del PC. El móvil no recibe la credencial del conector. Nunca publiques el puerto 9140; el conector 9141 se liga a la IP privada y requiere su credencial.
 
-Nunca publiques el puerto 9140: el servidor Hermes queda en `127.0.0.1`. El puerto 9141 requiere la credencial del conector y se liga a la IP Tailscale. El servicio NAS solo acepta destinos IPv4 de Tailscale, fija la IP al vincular y no sigue redirecciones. Revocar un equipo invalida los tickets pendientes y cierra los sockets activos. No mata una tarea ya ejecutándose ni un shell separado: ciérralo explícitamente antes de revocar si lo necesitas.
-
-Para autoarranque utiliza las plantillas de `deploy/mobile/agents/`. Ajusta rutas de Node, fork, Hermes y la IP de cada PC; realiza la vinculación una vez en primer plano. No copies el token al archivo de servicio. Los agentes persistentes se arrancan sin `--pair`. macOS: LaunchAgent del usuario; Linux/Bazzite: systemd del usuario; Windows: tarea al iniciar sesión. El servicio comparte los datos de perfil de Hermes, pero conserva su propio proceso y no adopta un puerto ocupado.
+Windows usa PowerShell/ConPTY y Linux/Bazzite el shell del usuario. Para autoarranque utiliza las plantillas de `deploy/mobile/agents/`, adaptando rutas y dirección. Los procesos persistentes arrancan sin `--pair`. No ejecutes un segundo conector en un puerto ocupado.
 
 ## Compilar Android
 
 ```sh
 npm --prefix apps/mobile ci --workspaces=false
-# Requiere Java 21 y Android SDK 36; ANDROID_HOME apunta al SDK.
+# Java 21 y Android SDK 36; ANDROID_HOME apunta al SDK.
 npm --prefix apps/mobile run android:build
 ```
 
-APK: `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`. Android 8+ (API 26). El proyecto Android ya está versionado; no repitas `cap add android`. Para distribución firma una build release con tu keystore, mantenido fuera de Git.
+APK: `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`. Android 8+ (API 26). No hace falta registrar la app en ningún servicio. Para distribución firma una build release con un keystore fuera de Git.
 
-## Verificación
+## Verificación y límites
 
 ```sh
 npm --prefix apps/mobile-server run typecheck
@@ -95,9 +87,8 @@ npm --prefix apps/mobile-agent run typecheck
 npm --prefix apps/mobile-agent test
 npm --prefix apps/mobile test
 npm --prefix apps/mobile run test:browser
-npm --prefix apps/mobile run build
 ```
 
-Las pruebas comprueban cifrado, aislamiento por cuenta, caducidad, uso único y ruta exacta de tickets, rechazo de destinos externos, proxy HTTP/WebSocket, shell real, recuperación de terminal y revocación. La autenticación simulada vive únicamente en los tests; `src/main.ts` verifica tokens reales Google/Firebase.
+Las pruebas cubren clave local, rechazo sin credenciales, conservación del cifrado, aislamiento, caducidad/tickets de uso único, límites del proxy, shell real, reconexión, revocación, borradores y aprobaciones. No hay bypass de autenticación en el APK.
 
-Límites explícitos: adjuntos/subidas de 8 MB, hasta ocho terminales por conector, recuperación de un shell desconectado durante 15 minutos. Los chats sí persisten en Hermes. No se ha certificado todavía el login Google sin un proyecto real, el lector QR con cámara física, la suspensión de Android, ni Windows/Bazzite en hardware. Antes de uso continuo: probar suspensión/reconexión, restauración del NAS y una ejecución de 24 horas.
+Adjuntos/subidas: 8 MB. Hasta ocho terminales por conector, con recuperación durante 15 minutos desconectados. Revocar cierra los sockets e invalida tickets, pero no cancela una tarea ya lanzada. Pendientes: cámara QR física, suspensión/reconexión, estabilidad de 24 horas, restauración y conectores Windows/Linux en hardware.

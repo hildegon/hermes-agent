@@ -31,9 +31,9 @@ export async function createServer(options: ServerOptions) {
   })
   async function owner(request: { headers: { authorization?: string } }): Promise<string> {
     const value = request.headers.authorization
-    if (!value?.startsWith('Bearer ')) throw Object.assign(new Error('Sign in with Google'), { statusCode: 401 })
+    if (!value?.startsWith('Bearer ')) throw Object.assign(new Error('Access key required'), { statusCode: 401 })
     let uid: string
-    try { uid = await options.verify(value.slice(7)) } catch { throw Object.assign(new Error('Google session expired'), { statusCode: 401 }) }
+    try { uid = await options.verify(value.slice(7)) } catch { throw Object.assign(new Error('Invalid access key'), { statusCode: 401 }) }
     if (uid !== options.ownerUid) throw Object.assign(new Error('This account is not authorized'), { statusCode: 403 })
     return uid
   }
