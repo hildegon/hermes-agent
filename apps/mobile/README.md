@@ -56,13 +56,16 @@ El Mac debe permanecer encendido, despierto, conectado a Tailscale y con la sesi
 Desde la raíz del fork, cambia las rutas, IP y URL por las de tu instalación:
 
 ```sh
-npm --prefix apps/mobile-agent ci --workspaces=false
-npm --prefix apps/mobile-agent start -- \
+cd apps/mobile-agent
+npm ci --workspaces=false
+npm start -- \
   --hermes /Users/sergio/.local/bin/hermes \
   --host 100.73.102.62 --port 9141 --hermes-port 9140 \
   --server https://sergios-mac-mini.tail0b6ccb.ts.net \
   --url http://100.73.102.62:9141 --name "Mac mini" --pair
 ```
+
+Ejecuta la instalación desde la carpeta del conector: `npm --prefix` puede producir el falso error «Missing: mobile-agent@0.1.0 from lock file» en copias nuevas bajo rutas simbólicas (por ejemplo, `/home` → `/var/home` en Fedora/Bazzite). No regeneres el lockfile para resolverlo. En Linux, `node-pty` necesita Python 3, `make` y un compilador C++; su script de compilación está autorizado en el paquete. Si faltan esas herramientas, resuelve ese requisito antes de iniciar el conector.
 
 El conector guarda su credencial propia en `~/.config/hermes-mobile/agent.json` (600), supervisa Hermes en loopback e imprime un QR/código de cinco minutos. En el móvil conectado al servicio: escanea o pega ese código y confirma nombre/dirección del PC. El móvil no recibe la credencial del conector. Nunca publiques el puerto 9140; el conector 9141 se liga a la IP privada y requiere su credencial.
 

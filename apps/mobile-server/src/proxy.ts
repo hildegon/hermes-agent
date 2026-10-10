@@ -1,7 +1,7 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { Readable } from 'node:stream'
-import WebSocket from 'ws'
+import type WebSocket from 'ws'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 
 export const websocketPaths = new Set(['/api/ws', '/mobile/terminal'])
@@ -49,15 +49,16 @@ export async function proxyHttp(request: FastifyRequest, reply: FastifyReply, ba
   await reply.send(Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]))
 }
 export function bridgeSockets(client: WebSocket, url: string, credential: string, onClosed?: () => void) {
-  const upstream = new WebSocket(url, { headers: { authorization: `Bearer ${credential}` }, maxPayload: 16 * 1024 * 1024, handshakeTimeout: 15_000 })
+  const Socket = client.constructor as typeof WebSocket
+  const upstream = new Socket(url, { headers: { authorization: `Bearer ${credential}` }, maxPayload: 16 * 1024 * 1024, handshakeTimeout: 15_000 })
   const queued: { data: WebSocket.RawData; binary: boolean }[] = []
   let queuedBytes = 0
   function forward(target: WebSocket, data: WebSocket.RawData, binary: boolean) {
     if (target.bufferedAmount > 8 * 1024 * 1024) { client.close(1013, 'Slow connection'); upstream.close(); return }
-    if (target.readyState === WebSocket.OPEN) target.send(data, { binary })
+    if (target.readyState === Socket.OPEN) target.send(data, { binary })
   }
   client.on('message', (data, binary) => {
-    if (upstream.readyState === WebSocket.CONNECTING) {
+    if (upstream.readyState === Socket.CONNECTING) {
       queuedBytes += Buffer.byteLength(data as Buffer)
       if (queuedBytes > 1024 * 1024) { client.close(1009, 'Too much pending data'); upstream.close(); return }
       queued.push({ data, binary })
