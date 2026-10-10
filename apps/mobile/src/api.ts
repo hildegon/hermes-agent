@@ -1,3 +1,5 @@
+import { App as NativeApp } from '@capacitor/app'
+import type { PluginListenerHandle } from '@capacitor/core'
 import { JsonRpcGatewayClient } from '@hermes/shared'
 import { accessToken } from './auth'
 export interface Machine { id: string; name: string; url: string }
@@ -47,8 +49,15 @@ export class AgentConnection {
   private disposed = false
   private attempts = 0
   private connecting = false
+  private activity: Promise<PluginListenerHandle>
   private unwatch: () => void
   constructor(readonly api: Api, readonly machine: string, readonly profile: string) {
+    this.activity = NativeApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive || this.disposed || this.client.connectionState === 'open') return
+      this.attempts = 0
+      if (this.timer) { clearTimeout(this.timer); this.timer = undefined }
+      void this.connect().catch(() => {})
+    })
     this.unwatch = this.client.onState(state => {
       if (state === 'open') this.attempts = 0
       if ((state === 'closed' || state === 'error') && !this.connecting) this.retry()
@@ -66,5 +75,5 @@ export class AgentConnection {
       if (!this.disposed) await this.client.connect(url)
     } finally { this.connecting = false; if (!this.disposed && this.client.connectionState !== 'open') this.retry() }
   }
-  close() { this.disposed = true; if (this.timer) clearTimeout(this.timer); this.unwatch(); this.client.close() }
+  close() { this.disposed = true; if (this.timer) clearTimeout(this.timer); this.unwatch(); void this.activity.then(listener => listener.remove()); this.client.close() }
 }
