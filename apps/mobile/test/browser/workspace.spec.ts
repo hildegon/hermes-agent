@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
-async function fixture(page: Page, resume = false) {
+async function fixture(page: Page, resume = false, failTurn = false) {
   await page.addInitScript(() => { localStorage.setItem('mobile:server:v1', 'http://127.0.0.1:3000'); localStorage.setItem('mobile:access:v1', JSON.stringify({ server: 'http://127.0.0.1:3000', key: 'a'.repeat(43) })) })
   const replies: unknown[] = [], calls: string[] = []
   let askApproval = () => {}, approvalPending = false
@@ -31,12 +31,14 @@ async function fixture(page: Page, resume = false) {
       let result: unknown = {}
       if (method === 'profiles.list') result = { profiles: [{ name: 'default' }, { name: 'developer', display_name: 'Developer' }] }
       if (method === 'session.list') result = { sessions: [] }
+      if (method === 'session.history') result = { messages: [] }
       if (method === 'session.resume') result = { session_id: 'runtime', stored_session_id: 'stored', messages: [], open_requests: [{ id: 'pending-question', method: 'clarify', params: { session_id: 'runtime', questions: [{ qid: 'folder', question: '¿Qué carpeta usamos?' }] } }] }
       if (method === 'session.create') result = { session_id: 'runtime', stored_session_id: 'stored', messages: [] }
       if (method === 'approval.pending') result = { approvals: approvalPending ? [{ request_id: 'approval-1', command: 'echo proof', description: 'Comando de prueba', choices: ['once', 'deny'] }] : [] }
       if (method === 'approval.respond') approvalPending = false
       if (method === 'prompt.submit') result = { status: 'streaming' }
       ws.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result }))
+      if (method === 'prompt.submit' && failTurn) { ws.send(JSON.stringify({jsonrpc:'2.0',method:'event',params:{type:'message.complete',session_id:'runtime',payload:{status:'error',text:'El modelo local no tiene memoria suficiente.'}}})); return }
       if (method === 'prompt.submit') setTimeout(() => ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'event', params: { type: 'message.delta', session_id: 'runtime', payload: { text: 'Respuesta de prueba: conexión lista.' } } })), 20)
     })
   })
@@ -112,4 +114,12 @@ test('connects with a local key, restores access after reload and logs out', asy
   await expect(page.getByRole('heading', { name: 'Tus máquinas' })).toBeVisible()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page.getByLabel('Clave de acceso')).toHaveValue('')
+})
+
+test('shows terminal model failures instead of an empty successful chat', async ({page}) => {
+  await fixture(page, false, true)
+  await page.getByLabel('Mensaje para Hermes').fill('Prueba de error')
+  await page.getByRole('button', {name:'Enviar mensaje'}).click()
+  await expect(page.getByRole('alert')).toContainText('El modelo local no tiene memoria suficiente.')
+  await expect(page.getByRole('button', {name:'Detener tarea'})).toHaveCount(0)
 })

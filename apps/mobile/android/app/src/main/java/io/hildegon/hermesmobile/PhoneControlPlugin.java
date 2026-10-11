@@ -42,6 +42,8 @@ public class PhoneControlPlugin extends Plugin {
         call.resolve(result);
     }
     @PluginMethod public void installTermux(PluginCall call) { PhoneSetup.installTermux(this,call); }
+    @PluginMethod public void localModelStatus(PluginCall call) { LocalModel.status(this,call); }
+    @PluginMethod public void localModel(PluginCall call) { LocalModel.action(this,call); }
     @PluginMethod public void prepareRuntime(PluginCall call) { PhoneSetup.prepare(this,call); }
     @PluginMethod public void appSettings(PluginCall call) { getActivity().startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getContext().getPackageName())));call.resolve(); }
     @PluginMethod public void copyLoginCode(PluginCall call) {

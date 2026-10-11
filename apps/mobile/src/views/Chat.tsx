@@ -62,6 +62,7 @@ export default function Chat({ api, machine, profile, connection, cwd, onError, 
       if (event.session_id !== active.current) return
       const payload = (event.payload || {}) as Record<string, unknown>
       if (event.type === 'message.delta') { setRunning(true); setStream(previous => previous + (typeof payload.text === 'string' ? payload.text : '')) }
+      if (event.type === 'error' || (event.type === 'message.complete' && payload.status === 'error')) { setRunning(false); onError(String(payload.message || payload.text || 'Hermes no pudo completar la tarea.')) }
       if (event.type === 'message.complete') { setRunning(false); void report(() => sync(active.current)) }
       if (event.type === 'tool.start') setActivity(previous => [...previous.slice(-19), String(payload.name || 'Herramienta en ejecución')])
       if (event.type === 'approval.cancelled') void report(() => pending(active.current))

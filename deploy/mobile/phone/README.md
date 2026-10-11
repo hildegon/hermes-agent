@@ -1,6 +1,6 @@
 # Hermes on Android (experimental)
 
-Open **Este teléfono** in Hermes Mobile to prepare the local agent. You do not need a desktop, Tailscale, ADB or terminal commands. Android still requires you to confirm installation and grant accessibility permissions in its own screens. The AI provider normally requires internet access; this is not an on-device language model.
+Open **Este teléfono** in Hermes Mobile to prepare the local agent. You do not need a desktop, Tailscale, ADB or terminal commands. Android still requires you to confirm installation and grant accessibility permissions in its own screens. Cloud providers require internet; an experimental on-device model is also available.
 
 ## Setup from the app
 
@@ -18,10 +18,24 @@ Core source is pinned to commit `b4ee08ed97`; installation support files are pac
 
 The runtime is in Termux-private storage inside `hermes-phone`. Only explicitly selected apps can be read or operated; password nodes are omitted and node actions need a recent screen snapshot. The default profile is used in local chat. Accessibility restarts leave control stopped. Every HTTP route (including the desktop handshake) and WebSocket is authenticated, because Android loopback is shared between apps. The APK verifies its own private credential against the backend handshake. Running plain `hermes serve` without this wrapper is not supported.
 
-Termux battery restrictions can interrupt operation; this is not a guarantee of unattended availability. Screenshots, pixel gestures, offline inference, local terminal/filesystem tabs and automatic boot after restarting Android are outside this version. Desktop remote mode retains its existing capabilities.
+Termux battery restrictions can interrupt operation; this is not a guarantee of unattended availability. Screenshots, pixel gestures, local terminal/filesystem tabs and automatic boot after restarting Android are outside this version. Desktop remote mode retains its existing capabilities.
 
 ## Validation
 
 `python3 deploy/mobile/phone/test_plugin.py` (Python 3.11+ with the project YAML dependency), mobile Vitest tests and Android debug build. Tests cover preservation of existing model/tool configuration, invalid configuration without overwrite, OAuth request contract, incomplete forms without credential writes, and private backend boundaries. On Samsung, the app dispatched preparation through accessibility into a fresh Termux session, and native setup/error UI was inspected. A fresh emulator completed installation without any typed shell commands; Android confirmations were granted by test tooling. The fresh emulator also started the actual ChatGPT device-code flow from the UI and copied its code. `ADB=/path/to/adb node apps/mobile/scripts/phone-setup-smoke.mjs SERIAL` checks prepared debug devices for private backend readiness, stopped actions, unauthorized setup rejection and revoked setup authorization. Actual Google Pixel hardware and human completion of a new ChatGPT account login remain untested.
 
 `ADB=/path/to/adb node apps/mobile/scripts/phone-start-smoke.mjs SERIAL` checks a prepared debug device with a stopped backend and denied Termux command permission. It starts Hermes from the UI, verifies the authenticated local handshake and checks that command permission remains denied and agent UI control remains stopped.
+
+## Optional on-device AI
+
+After preparing Hermes, choose **Modelo local en el teléfono**, then **Descargar modelo**, **Iniciar modelo** and **Usar modelo local**. These fixed actions run from the app through Termux; initial package/model downloads require internet, but inference uses only authenticated `127.0.0.1:8767`. No cloud account or Tailscale is required for local inference. Web tools still need connectivity. Switching providers starts a fresh conversation and preserves old history and cloud credentials.
+
+The official [Qwen3-1.7B Q8_0 GGUF](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF) is pinned to revision `90862c4b9d2787eaed51d12237eafdfe7c5f6077`; the 1,834,426,016-byte file must match SHA-256 `061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a`. Downloads resume into a temporary file and are verified before activation. The motor is Termux `llama-cpp=0.6.0`, installed through signed APT metadata. Keep the phone unlocked during setup; failed setup can be retried.
+
+Requires Android 13+, ARM64, at least 8 GB RAM and 2 GB free storage for the model, in addition to the Hermes runtime. Startup also requires 3.5 GiB available RAM. Hermes requires a 64K context; the motor serves 65,536 tokens using YaRN 2× and Q4 KV cache, with four CPU threads and thinking disabled. This extends the model's native context and is experimental: long-context quality and complex UI tasks are not guaranteed. Only the explicitly authorized apps can be controlled. Stop the model from the app to release memory; Android may stop Termux in the background.
+
+`python3 deploy/mobile/phone/test_local_model.py` checks invalid actions, missing setup authorization and refusal to stop an unrelated process. Samsung SM-G998B / Android 15 loaded the real 64K motor. Because the test phone could not resolve download hosts, verified model/packages were transferred by USB for hardware tests; downloading directly on that phone's network remains unverified.
+
+The first full Hermes prompt on Samsung contained 4,795 tokens and took about eight minutes to prefill/respond with the 64K/Q4-cache setup; the next cached call took about 35 seconds. A real assistant reply reached the app, but it did not follow an exact-output instruction reliably. These measurements are one device/small sample, not a general performance guarantee. The hardware smoke command `ADB=/path/to/adb node apps/mobile/scripts/phone-local-model-smoke.mjs SERIAL` requires the model already installed/running, explicitly selects it and checks a real assistant response, invalid actions and unauthenticated model access.
+
+The complete Hermes agent also invoked `android_phone` with `action=launch, package=com.android.settings` and the actual Android foreground became Settings. Control was restored to stopped afterward. The small model needed multiple discovery calls, repeated the launch and ended with malformed JSON text; complex autonomous phone use is not certified. Cloud settings were restored after testing and the downloaded local model remains available.

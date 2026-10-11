@@ -19,12 +19,14 @@ final class PhoneSetup {
     static final String TERMUX_SHA = "72fdb596045116bf5ba1b5bdf5b26fddb9acc0bd074ad9f2da9eb0ae85e83a4e";
     static String phase(Context context) {
         String value=PhoneControlPlugin.prefs(context).getString("setupPhase", "idle");
-        if(java.util.Arrays.asList("opening","dependencies","linux","python","starting").contains(value) && System.currentTimeMillis()>=PhoneControlPlugin.prefs(context).getLong("setupExpires",0)){phase(context,"error");return "error";}
+        if(!"model".equals(PhoneControlPlugin.prefs(context).getString("setupKind","")) && java.util.Arrays.asList("opening","dependencies","linux","python","starting").contains(value) && System.currentTimeMillis()>=PhoneControlPlugin.prefs(context).getLong("setupExpires",0)){phase(context,"error");return "error";}
         return value;
     }
     static void phase(Context context, String phase) {
-        android.content.SharedPreferences.Editor editor=PhoneControlPlugin.prefs(context).edit().putString("setupPhase",phase);
-        if(phase.equals("ready") || phase.equals("error"))editor.remove("setupNonce");
+        boolean model="model".equals(PhoneControlPlugin.prefs(context).getString("setupKind",""));
+        android.content.SharedPreferences.Editor editor=PhoneControlPlugin.prefs(context).edit().putString(model?"modelPhase":"setupPhase",phase);
+        if(model && phase.equals("ready"))editor.putBoolean("modelInstalled",true);
+        if(phase.equals("ready") || phase.equals("error") || phase.equals("stopped"))editor.remove("setupNonce");
         editor.apply();
     }
     static boolean authorized(Context context, String header) {
@@ -38,31 +40,36 @@ final class PhoneSetup {
             if(length<0 || length>1024 || session.getHeaders().containsKey("transfer-encoding"))throw new IllegalArgumentException("Invalid status body");
             HashMap<String,String> body=new HashMap<>();session.parseBody(body);
             String value=new JSONObject(body.getOrDefault("postData","{}")).getString("phase");
-            if(!java.util.Arrays.asList("dependencies","linux","python","starting","ready","error").contains(value))throw new IllegalArgumentException("Invalid installation phase");
+            if(!java.util.Arrays.asList("dependencies","linux","python","downloading","verifying","starting","ready","stopped","error").contains(value))throw new IllegalArgumentException("Invalid installation phase");
             phase(context,value);
             return NanoHTTPD.newFixedLengthResponse("{}");
         }
         if(session.getMethod()!=NanoHTTPD.Method.GET)throw new IllegalArgumentException("Unsupported setup request");
         if(path.equals("bridge.json")){NanoHTTPD.Response response=NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK,"application/json",new JSONObject().put("token",PhoneControlPlugin.token(context)).toString());response.addHeader("Cache-Control","no-store");return response;}
-        if(!java.util.Arrays.asList("install.sh","start.sh","runtime.py","configure.py","plugin/plugin.yaml","plugin/__init__.py").contains(path))return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND,"text/plain","Unknown setup resource");
+        if(!java.util.Arrays.asList("install.sh","start.sh","runtime.py","configure.py","local-model.sh","plugin/plugin.yaml","plugin/__init__.py").contains(path))return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND,"text/plain","Unknown setup resource");
         NanoHTTPD.Response response=NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK,"text/plain",context.getAssets().open("phone/"+path));response.addHeader("Cache-Control","no-store");return response;
     }
-    static void prepare(PhoneControlPlugin plugin, com.getcapacitor.PluginCall call) {
+    static void prepare(PhoneControlPlugin plugin, com.getcapacitor.PluginCall call) { prepare(plugin,call,"runtime","install"); }
+    static void prepareModel(PhoneControlPlugin plugin, com.getcapacitor.PluginCall call,String action) { prepare(plugin,call,"model",action); }
+    private static void prepare(PhoneControlPlugin plugin, com.getcapacitor.PluginCall call,String kind,String action) {
         if(Build.VERSION.SDK_INT<33){call.reject("La preparación automática requiere Android 13 o posterior.");return;}
         PhoneControlService service=PhoneControlService.instance;
         if(service==null || !service.canPrepare()){call.reject("Activa primero la accesibilidad de Hermes Mobile.");return;}
+        if(authorized(plugin.getContext(),"Bearer "+PhoneControlPlugin.prefs(plugin.getContext()).getString("setupNonce",""))){call.reject("Espera a que termine la preparación actual.");return;}
         String nonce=java.util.UUID.randomUUID().toString().replace("-","")+java.util.UUID.randomUUID().toString().replace("-","");
-        PhoneControlPlugin.prefs(plugin.getContext()).edit().putString("setupNonce",nonce).putLong("setupExpires",System.currentTimeMillis()+3600000).putString("setupPhase","opening").apply();
+        PhoneControlPlugin.prefs(plugin.getContext()).edit().putString("setupNonce",nonce).putLong("setupExpires",System.currentTimeMillis()+3600000).putString("setupKind",kind).putString(kind.equals("model")?"modelPhase":"setupPhase","opening").apply();
         String encoded;
         try {
-            String script=new String(asset(plugin.getContext(),"install.sh"),java.nio.charset.StandardCharsets.UTF_8);
+            String scriptFile=kind.equals("model")?"local-model.sh":"install.sh";
+            String script=new String(asset(plugin.getContext(),scriptFile),java.nio.charset.StandardCharsets.UTF_8);
+            script=script.replace("@SHA_SELF@",sha(asset(plugin.getContext(),scriptFile)));
             String[][] resources={{"START","start.sh"},{"RUNTIME","runtime.py"},{"CONFIGURE","configure.py"},{"MANIFEST","plugin/plugin.yaml"},{"PLUGIN","plugin/__init__.py"}};
             for(String[] resource:resources)script=script.replace("@SHA_"+resource[0]+"@",sha(asset(plugin.getContext(),resource[1])));
             script=script.replace("@SHA_BRIDGE@",sha(new JSONObject().put("token",PhoneControlPlugin.token(plugin.getContext())).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             encoded=java.util.Base64.getEncoder().encodeToString(script.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }catch(Exception error){phase(plugin.getContext(),"error");call.reject("No se pudo cargar el instalador incluido en la app.");return;}
-        String command="HERMES_PHONE_SETUP_TOKEN='"+nonce+"' bash -c \"$(printf '%s' '"+encoded+"' | base64 -d)\"";
-        service.prepareTermux(command,()->call.resolve(),message->call.reject(message));
+        String command="HERMES_LOCAL_ACTION='"+action+"' HERMES_PHONE_SETUP_TOKEN='"+nonce+"' bash -c \"$(printf '%s' '"+encoded+"' | base64 -d)\"";
+        service.prepareTermux(command,()->call.resolve(),message->{phase(plugin.getContext(),"error");call.reject(message);});
     }
     private static byte[] asset(Context context,String path) throws Exception {
         try(java.io.InputStream input=context.getAssets().open("phone/"+path);java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream()){
