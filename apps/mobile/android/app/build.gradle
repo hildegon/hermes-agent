@@ -7,8 +7,8 @@ android {
         applicationId "io.hildegon.hermesmobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.2"
+        versionCode 4
+        versionName "1.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -46,9 +46,9 @@ dependencies {
 apply from: 'capacitor.build.gradle'
 
 android.sourceSets.main.assets.srcDir("$buildDir/generated/phoneAssets")
-tasks.register('stagePhoneAssets', Copy) {
+tasks.register('stagePhoneAssets', Sync) {
     from('../../../../deploy/mobile/phone')
-    include 'install.sh', 'start.sh', 'runtime.py', 'configure.py', 'local-model.sh', 'plugin/plugin.yaml', 'plugin/__init__.py'
+    include 'install.sh', 'start.sh', 'runtime.py', 'configure.py', 'plugin/plugin.yaml', 'plugin/__init__.py'
     into "$buildDir/generated/phoneAssets/phone"
 }
 preBuild.dependsOn stagePhoneAssets

@@ -2,8 +2,6 @@ import { registerPlugin } from '@capacitor/core'
 import { Api } from './api'
 export interface PhoneStatus { accessibility: boolean; enabled: boolean; termux: boolean; device: string; allowed: string[]; phase: string; commandPermission: boolean; automaticSetup: boolean }
 export const PhoneControl = registerPlugin<{
-  localModelStatus(): Promise<LocalModelStatus>
-  localModel(options: {action: 'install' | 'start' | 'stop'}): Promise<void>
   status(): Promise<PhoneStatus>
   installTermux(): Promise<void>
   prepareRuntime(): Promise<void>
@@ -40,17 +38,8 @@ export class PhoneApi extends Api {
     return (await PhoneControl.socket()).url
   }
 }
-export interface LocalModelStatus {phase:string;ready:boolean;installed:boolean}
 export interface PhoneLogin { session_id: string; user_code: string; verification_url: string }
 export async function configurePhoneProvider(api: PhoneApi, provider: string, model: string, key: string): Promise<PhoneLogin | null> {
-  if(provider==='local') {
-    if(!(await PhoneControl.localModelStatus()).ready) throw new Error('Inicia el modelo local antes de utilizarlo.')
-    const token=new URL((await PhoneControl.socket()).url).searchParams.get('token')
-    if(!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw new Error('No se pudo verificar la conexión local.')
-    await api.gateway('this-phone','default','/api/providers/custom-endpoints','POST',{id:'hermes-phone-local',name:'Hermes en este teléfono',model:'hermes-phone-local',base_url:'http://127.0.0.1:8767/v1',api_key:token,api_mode:'chat_completions',context_length:65536})
-    await api.gateway('this-phone','default','/api/providers/custom-endpoints/hermes-phone-local/activate','POST')
-    return null
-  }
   if(!model.trim()) throw new Error('Indica el modelo que quieres utilizar.')
   if(!['openai','openai-codex'].includes(provider)) throw new Error('Proveedor no compatible con este asistente.')
   if(provider==='openai') {

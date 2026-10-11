@@ -38,7 +38,7 @@ async function fixture(page: Page, resume = false, failTurn = false) {
       if (method === 'approval.respond') approvalPending = false
       if (method === 'prompt.submit') result = { status: 'streaming' }
       ws.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result }))
-      if (method === 'prompt.submit' && failTurn) { ws.send(JSON.stringify({jsonrpc:'2.0',method:'event',params:{type:'message.complete',session_id:'runtime',payload:{status:'error',text:'El modelo local no tiene memoria suficiente.'}}})); return }
+      if (method === 'prompt.submit' && failTurn) { ws.send(JSON.stringify({jsonrpc:'2.0',method:'event',params:{type:'message.complete',session_id:'runtime',payload:{status:'error',text:'El proveedor no está disponible.'}}})); return }
       if (method === 'prompt.submit') setTimeout(() => ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'event', params: { type: 'message.delta', session_id: 'runtime', payload: { text: 'Respuesta de prueba: conexión lista.' } } })), 20)
     })
   })
@@ -120,6 +120,6 @@ test('shows terminal model failures instead of an empty successful chat', async 
   await fixture(page, false, true)
   await page.getByLabel('Mensaje para Hermes').fill('Prueba de error')
   await page.getByRole('button', {name:'Enviar mensaje'}).click()
-  await expect(page.getByRole('alert')).toContainText('El modelo local no tiene memoria suficiente.')
+  await expect(page.getByRole('alert')).toContainText('El proveedor no está disponible.')
   await expect(page.getByRole('button', {name:'Detener tarea'})).toHaveCount(0)
 })

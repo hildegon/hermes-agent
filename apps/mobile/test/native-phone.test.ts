@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-const native = vi.hoisted(() => ({ gateway: vi.fn(), socket: vi.fn(), startRuntime: vi.fn(), localModelStatus: vi.fn() }))
+const native = vi.hoisted(() => ({ gateway: vi.fn(), socket: vi.fn(), startRuntime: vi.fn() }))
 vi.mock('@capacitor/core', () => ({ registerPlugin: () => native }))
 import { PhoneApi, configurePhoneProvider, startPhoneRuntime } from '../src/native-phone'
 describe('local phone transport', () => {
@@ -60,22 +60,5 @@ describe('phone startup confirmation',()=>{
       await vi.runAllTimersAsync()
       await result
     } finally {vi.useRealTimers()}
-  })
-})
-
-describe('local model connection',()=>{
-  it('uses an authenticated named local endpoint without changing cloud credentials',async()=>{
-    native.localModelStatus.mockResolvedValue({ready:true})
-    native.socket.mockResolvedValue({url:'ws://127.0.0.1:9140/api/ws?token='+ 'a'.repeat(43)})
-    const api=new PhoneApi(), gateway=vi.spyOn(api,'gateway').mockResolvedValue({})
-    expect(await configurePhoneProvider(api,'local','','')).toBeNull()
-    expect(gateway.mock.calls[0]).toEqual(['this-phone','default','/api/providers/custom-endpoints','POST',{id:'hermes-phone-local',name:'Hermes en este teléfono',model:'hermes-phone-local',base_url:'http://127.0.0.1:8767/v1',api_key:'a'.repeat(43),api_mode:'chat_completions',context_length:65536}])
-    expect(gateway.mock.calls[1]).toEqual(['this-phone','default','/api/providers/custom-endpoints/hermes-phone-local/activate','POST'])
-  })
-  it('never changes configuration if the model is stopped',async()=>{
-    native.localModelStatus.mockResolvedValue({ready:false})
-    const api=new PhoneApi(),gateway=vi.spyOn(api,'gateway')
-    await expect(configurePhoneProvider(api,'local','','')).rejects.toThrow('Inicia el modelo')
-    expect(gateway).not.toHaveBeenCalled()
   })
 })
