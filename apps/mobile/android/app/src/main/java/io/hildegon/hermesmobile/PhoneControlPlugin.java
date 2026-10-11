@@ -78,17 +78,17 @@ public class PhoneControlPlugin extends Plugin {
             prefs(getContext()).edit().putStringSet("apps",apps).apply(); call.resolve();
         }catch(Exception error){call.reject("Lista de aplicaciones no válida.");}
     }
-    @PluginMethod public void authorizeTermux(PluginCall call) {
-        try {getContext().getPackageManager().getPackageInfo("com.termux",0);}catch(Exception error){call.reject("Instala primero el entorno Termux desde esta pantalla.");return;}
-        if(getPermissionState("termux")==PermissionState.GRANTED){call.resolve();return;}
-        requestPermissionForAlias("termux",call,"termuxPermission");
-    }
-    @PermissionCallback private void termuxPermission(PluginCall call) {
-        if(getPermissionState("termux")==PermissionState.GRANTED)call.resolve();
-        else call.reject("Permiso denegado. Abre los permisos de Hermes Mobile y busca Permisos adicionales · Ejecutar comandos en Termux.");
-    }
     @PluginMethod public void startRuntime(PluginCall call) {
-        if (getPermissionState("termux") != PermissionState.GRANTED) { requestPermissionForAlias("termux", call, "runtimePermission"); return; }
+        if(getPermissionState("termux")!=PermissionState.GRANTED) {
+            if(Build.VERSION.SDK_INT>=33) {
+                PhoneControlService service=PhoneControlService.instance;
+                if(service==null || !service.canPrepare()){call.reject("Activa la accesibilidad de Hermes Mobile para iniciar el agente desde la app.");return;}
+                // The explicit start action reuses setup input; no arbitrary command or credential reaches the UI.
+                service.prepareTermux("nohup bash ~/hermes-phone/start.sh > ~/hermes-phone/runtime.log 2>&1 </dev/null &",()->call.resolve(),message->call.reject(message));
+                return;
+            }
+            requestPermissionForAlias("termux",call,"runtimePermission");return;
+        }
         try {
             String config=new JSObject().put("token",token(getContext())).toString();
             String encoded=Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8));
