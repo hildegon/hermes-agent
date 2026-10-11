@@ -28,6 +28,8 @@ try {
     await new Promise(resolve=>setTimeout(resolve,1000))
   }
   assert.equal(ready,true,'The fixed accessibility start must launch the authenticated backend')
+  run('shell','am','start','-n','io.hildegon.hermesmobile/.MainActivity')
+  await page.getByRole('button',{name:'En ejecución',exact:true}).waitFor({timeout:15000})
   const after=await page.evaluate(()=>window.Capacitor.nativePromise('PhoneControl','status',{}))
   assert.equal(after.commandPermission,false,'Start must work without granting RUN_COMMAND')
   assert.equal(after.enabled,false,'Start must not activate agent UI control')

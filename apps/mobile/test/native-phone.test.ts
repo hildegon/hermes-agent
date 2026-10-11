@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-const native = vi.hoisted(() => ({ gateway: vi.fn(), socket: vi.fn() }))
+const native = vi.hoisted(() => ({ gateway: vi.fn(), socket: vi.fn(), startRuntime: vi.fn() }))
 vi.mock('@capacitor/core', () => ({ registerPlugin: () => native }))
-import { PhoneApi, configurePhoneProvider } from '../src/native-phone'
+import { PhoneApi, configurePhoneProvider, startPhoneRuntime } from '../src/native-phone'
 describe('local phone transport', () => {
   it('uses the native bridge and keeps the profile in the API request', async () => {
     native.gateway.mockResolvedValue({ status: 200, body: '{"ok":true}' })
@@ -36,5 +36,29 @@ describe('phone provider setup', () => {
     await expect(configurePhoneProvider(api,'openai','gpt-test','')).rejects.toThrow('clave')
     await expect(configurePhoneProvider(api,'openai-codex','','')).rejects.toThrow('modelo')
     expect(gateway).not.toHaveBeenCalled()
+  })
+})
+
+describe('phone startup confirmation',()=>{
+  it('does not treat dispatch as a successful start',async()=>{
+    vi.useFakeTimers()
+    try {
+      native.startRuntime.mockResolvedValue(undefined)
+      native.socket.mockReset().mockRejectedValueOnce(new Error('not ready')).mockResolvedValue({url:'private'})
+      const result=startPhoneRuntime()
+      await vi.runAllTimersAsync()
+      await expect(result).resolves.toBeUndefined()
+      expect(native.socket).toHaveBeenCalledTimes(2)
+    } finally {vi.useRealTimers()}
+  })
+  it('reports a failed backend instead of silently completing',async()=>{
+    vi.useFakeTimers()
+    try {
+      native.startRuntime.mockResolvedValue(undefined)
+      native.socket.mockReset().mockRejectedValue(new Error('not ready'))
+      const result=expect(startPhoneRuntime()).rejects.toThrow('Hermes no ha respondido')
+      await vi.runAllTimersAsync()
+      await result
+    } finally {vi.useRealTimers()}
   })
 })

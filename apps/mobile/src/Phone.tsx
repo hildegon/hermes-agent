@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { App as NativeApp } from '@capacitor/app'
 import { ArrowLeft, Smartphone, Square, Play, RefreshCw } from 'lucide-react'
-import { PhoneApi, PhoneControl, configurePhoneProvider, type PhoneLogin, type PhoneStatus } from './native-phone'
+import { PhoneApi, PhoneControl, configurePhoneProvider, startPhoneRuntime, type PhoneLogin, type PhoneStatus } from './native-phone'
 import Workspace from './Workspace'
 const phases: Record<string,string> = { opening: 'Abriendo el entorno…', dependencies: 'Instalando dependencias…', linux: 'Preparando Linux…', python: 'Instalando Hermes…', starting: 'Arrancando Hermes…', ready: 'Instalación terminada', error: 'La instalación no terminó. Puedes reintentar.' }
 export default function Phone({ onBack }: { onBack: () => void }) {
   const [status, setStatus] = useState<PhoneStatus | null>(null), [apps, setApps] = useState<{ package: string; name: string }[]>([])
+  const [starting, setStarting] = useState(false)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [ready, setReady] = useState(false), [setup, setSetup] = useState(true), [search, setSearch] = useState('')
   const [provider, setProvider] = useState('openai-codex'), [model, setModel] = useState('gpt-6-luna'), [key, setKey] = useState(''), [login, setLogin] = useState<PhoneLogin | null>(null), [signedIn, setSignedIn] = useState(false)
   const api = useMemo(() => new PhoneApi(), [])
@@ -33,6 +34,10 @@ export default function Phone({ onBack }: { onBack: () => void }) {
     return () => clearInterval(timer)
   },[api,login])
   async function run(action: () => Promise<void>) { setError(''); setBusy(true); try { await action(); await refresh() } catch(error) { setError((error as Error).message) } finally { setBusy(false) } }
+  async function start() {
+    setStarting(true)
+    try { await startPhoneRuntime() } finally { setStarting(false) }
+  }
   async function configure() {
     const value=await configurePhoneProvider(api,provider,model,key)
     setKey('');setLogin(value);setSignedIn(value===null)
@@ -47,7 +52,7 @@ export default function Phone({ onBack }: { onBack: () => void }) {
       {!status?.accessibility ? <p className="notice">Si Android bloquea el permiso, abre la ficha de Hermes Mobile, toca ⋮ y permite los ajustes restringidos.<button onClick={() => void run(() => PhoneControl.appSettings())}>Abrir ficha de la app</button></p> : null}
       <div className="setting-row"><div><strong>Instalación de Hermes</strong><small role="status">{installing ? phases[status.phase] : ready ? 'Hermes está listo' : phases[status?.phase || ''] || 'Prepara el agente automáticamente'}</small></div><button disabled={busy || installing || !status?.termux || !status?.accessibility || !status?.automaticSetup} onClick={() => void run(() => PhoneControl.prepareRuntime())}>{ready ? 'Reparar instalación' : 'Preparar Hermes'}</button></div>
       {!ready ? <p className="muted">La preparación abre una sesión nueva en Termux e instala el agente. Mantén el teléfono desbloqueado. Puedes volver aquí para seguir el progreso, sin escribir comandos.</p> : null}
-      <div className="setting-row"><div><strong>Arranque</strong><small>{ready ? 'Conexión local disponible' : 'Inicia el agente después de prepararlo'}</small></div><button disabled={busy || !status?.termux || ready} onClick={() => void run(() => PhoneControl.startRuntime())}>Iniciar</button><button aria-label="Comprobar Hermes local" disabled={busy} onClick={() => void run(refresh)}><RefreshCw/></button></div>
+      <div className="setting-row"><div><strong>Arranque</strong><small>{starting ? 'Esperando a que Hermes responda… Si se abre Termux, vuelve a esta app.' : ready ? 'Conexión local disponible' : 'Inicia el agente después de prepararlo'}</small></div><button disabled={busy || !status?.termux || ready} onClick={() => void run(start)}>{starting ? 'Arrancando…' : ready ? 'En ejecución' : 'Iniciar'}</button><button aria-label="Comprobar Hermes local" disabled={busy} onClick={() => void run(refresh)}><RefreshCw/></button></div>
       {status?.termux && !status.commandPermission ? <p className="notice">Al pulsar Iniciar, Hermes abrirá Termux y arrancará el agente automáticamente. Mantén el teléfono desbloqueado y vuelve aquí después. No necesitas buscar un permiso adicional en Ajustes.</p> : null}
       {ready ? <section className="phone-provider"><h2>Proveedor de IA</h2><p className="muted">Tu configuración actual se conserva. Puedes conectar una cuenta nueva desde aquí.</p><label>Proveedor<select value={provider} onChange={event => {setProvider(event.target.value);setSignedIn(false)}}><option value="openai-codex">Cuenta ChatGPT</option><option value="openai">OpenAI con clave de API</option>{!['openai','openai-codex'].includes(provider) ? <option value={provider}>{provider}</option> : null}</select></label><label>Modelo<input value={model} onChange={event=>setModel(event.target.value)} autoCapitalize="none"/></label>{provider==='openai' ? <label>Clave de API<input type="password" value={key} onChange={event=>setKey(event.target.value)} autoComplete="off" autoCapitalize="none"/></label> : null}<button disabled={busy || !['openai','openai-codex'].includes(provider)} onClick={() => void run(configure)}>{provider==='openai-codex' ? 'Conectar cuenta ChatGPT' : 'Guardar configuración'}</button>{signedIn ? <p role="status">Credenciales configuradas.</p> : <p className="muted">Conecta tu proveedor para empezar a conversar.</p>}{login ? <div className="notice"><p>Introduce este código al iniciar sesión: <strong>{login.user_code}</strong></p><button onClick={() => void run(() => PhoneControl.copyLoginCode({code:login.user_code}))}>Copiar código</button><button onClick={() => void run(() => PhoneControl.openLogin({url:login.verification_url}))}>Abrir inicio de sesión</button><p>La app comprobará la conexión automáticamente.</p></div> : null}</section> : null}
       <div className="setting-row"><div><strong>Control del teléfono</strong><small>{status?.enabled ? 'Activo' : 'Detenido'}</small></div><button disabled={busy || !status?.accessibility} onClick={() => void run(() => PhoneControl.setEnabled({ enabled: !status?.enabled }))}>{status?.enabled ? <Square/> : <Play/>}{status?.enabled ? 'Detener' : 'Activar'}</button></div>

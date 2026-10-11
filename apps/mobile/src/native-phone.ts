@@ -49,3 +49,12 @@ export async function configurePhoneProvider(api: PhoneApi, provider: string, mo
   await api.gateway('this-phone','default','/api/config','PUT',{config:{model:{provider,default:model.trim(),base_url:provider==='openai-codex'?'https://chatgpt.com/backend-api/codex':'https://api.openai.com/v1'}}})
   return provider==='openai-codex' ? api.gateway<PhoneLogin>('this-phone','default','/api/providers/oauth/openai-codex/start','POST') : null
 }
+
+export async function startPhoneRuntime(): Promise<void> {
+  await PhoneControl.startRuntime()
+  for(let attempt=0;attempt<20;attempt++) {
+    try { await PhoneControl.socket(); return } catch { /* Dispatch is not readiness; wait for the private handshake. */ }
+    await new Promise(resolve=>setTimeout(resolve,1500))
+  }
+  throw new Error('Hermes no ha respondido al arranque. Pulsa Preparar Hermes para completar o reparar la instalación; después vuelve a iniciar. Si Termux muestra un error, vuelve a la app para consultar este aviso.')
+}
