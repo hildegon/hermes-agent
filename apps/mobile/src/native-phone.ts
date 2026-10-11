@@ -12,6 +12,7 @@ export const PhoneControl = registerPlugin<{
   setEnabled(options: { enabled: boolean }): Promise<void>
   applications(): Promise<{ apps: { package: string; name: string }[] }>
   allowApps(options: { apps: string[] }): Promise<void>
+  authorizeTermux(): Promise<void>
   startRuntime(): Promise<void>
   gateway(options: { path: string; method: string; body?: string }): Promise<{ status: number; body: string }>
   socket(): Promise<{ url: string }>
